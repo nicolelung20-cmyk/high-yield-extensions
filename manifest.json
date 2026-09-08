@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "AI Email Assistant Pro",
+  "version": "1.0.0",
+  "description": "Auto-compose emails with AI. Generates professional emails instantly.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "webRequest",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "*://mail.google.com/*",
+    "*://outlook.live.com/*",
+    "*://api.openai.com/*",
+    "*://api.anthropic.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Email Assistant"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://mail.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "images/icon-16.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}

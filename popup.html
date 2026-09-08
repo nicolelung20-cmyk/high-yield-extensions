@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Email Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 350px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .status {
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ AI Email Assistant</h1>
+        
+        <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="quick">Quick Write</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
+        </div>
+
+        <div id="quick" class="tab-content active">
+            <div class="form-group">
+                <label for="quickPrompt">What do you want to write?</label>
+                <textarea id="quickPrompt" placeholder="e.g., Ask for a meeting next week" style="width: 100%; height: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: Arial; font-size: 12px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="quickTone">Tone:</label>
+                <select id="quickTone">
+                    <option value="professional">Professional</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                </select>
+            </div>
+            <button id="quickGenerateBtn">Generate Email</button>
+            <div id="quickStatus"></div>
+            <p class="info-text">Tip: Use the "AI Write" button in Gmail compose area for inline editing.</p>
+        </div>
+
+        <div id="settings" class="tab-content">
+            <div class="form-group">
+                <label>API Provider:</label>
+                <select id="apiProvider">
+                    <option value="openai">OpenAI (GPT-3.5)</option>
+                    <option value="claude">Anthropic Claude</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="openaiKey">OpenAI API Key:</label>
+                <input type="password" id="openaiKey" placeholder="sk-...">
+                <p class="info-text">Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></p>
+            </div>
+            <div class="form-group">
+                <label for="claudeKey">Claude API Key:</label>
+                <input type="password" id="claudeKey" placeholder="sk-ant-...">
+                <p class="info-text">Get your key at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></p>
+            </div>
+            <div class="form-group">
+                <label for="emailTone">Default Email Tone:</label>
+                <select id="emailTone">
+                    <option value="professional">Professional</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                </select>
+            </div>
+            <button id="saveSettingsBtn">Save Settings</button>
+            <div id="settingsStatus"></div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
