@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "5 high-revenue browser extensions with complete boilerplate code",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@supabase/server": "^1.5.3",
+    "@supabase/supabase-js": "^2.114.0",
+    "hono": "^4.6.14"
+  }
 }
