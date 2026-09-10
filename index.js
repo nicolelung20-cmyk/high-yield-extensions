@@ -54,8 +54,10 @@ app.get("/", (c) =>
 // Publishable-key route: the browser extensions call this to check whether a
 // license key is active before unlocking a paid feature. Anonymous (RLS
 // still applies), gated to known clients via the publishable/apikey header.
-// Expects a `licenses` table: (key text primary key, extension_id text,
-// active boolean, expires_at timestamptz null).
+// Expects a `licenses` table (key text primary key, extension_id text,
+// active boolean, expires_at timestamptz null) and the verify_license(text,
+// text) function -- both created by
+// supabase/migrations/20260910000000_licenses_and_profiles.sql.
 app.get("/api/license/verify", withSupabase({ auth: "publishable" }), async (c) => {
   const key = c.req.query("key");
   const extensionId = c.req.query("extension_id");
@@ -64,11 +66,13 @@ app.get("/api/license/verify", withSupabase({ auth: "publishable" }), async (c) 
   }
 
   const { supabase } = c.var.supabaseContext;
+  // Goes through the verify_license() SECURITY DEFINER function rather than
+  // selecting from `licenses` directly. The publishable key ships inside the
+  // extension bundles, so it is public; anon therefore has no table access at
+  // all, and this RPC can only ever return the single row matching the key
+  // that was passed in. Response shape is unchanged.
   const { data, error } = await supabase
-    .from("licenses")
-    .select("active, expires_at")
-    .eq("key", key)
-    .eq("extension_id", extensionId)
+    .rpc("verify_license", { p_key: key, p_extension_id: extensionId })
     .maybeSingle();
 
   if (error) return c.json({ error: error.message }, 500);
