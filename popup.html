@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Analytics Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 360px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .stats-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .earnings {
+            font-size: 24px;
+            color: #28a745;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .content {
+            display: none;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 11px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .privacy-notice {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #004085;
+            border-left: 3px solid #0066cc;
+            margin-bottom: 15px;
+        }
+
+        .earnings-breakdown {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .breakdown-item:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Traffic Analytics Pro</h1>
+            <p>Earn money from your browsing data</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
+            <button class="tab-btn" data-tab="privacy">Privacy</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="content active">
+            <div class="stats-box">
+                <div class="stat-item">
+                    <div class="stat-label">Total Earnings</div>
+                    <div class="stat-value earnings">$<span id="earningsValue">0.00</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Data Points Shared</div>
+                    <div class="stat-value" id="dataPointsValue">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Status</div>
+                    <div style="font-size: 14px; color: #28a745; font-weight: bold; margin-top: 5px;">✓ Active</div>
+                </div>
+            </div>
+            <div class="earnings-breakdown">
+                <div style="font-weight: bold; margin-bottom: 8px; font-size: 12px;">Earnings Breakdown</div>
+                <div class="breakdown-item">
+                    <span>Page views</span>
+                    <span>$<span id="pvEarnings">0.00</span></span>
+                </div>
+                <div class="breakdown-item">
+                    <span>Time on site</span>
+                    <span>$<span id="tosEarnings">0.00</span></span>
+                </div>
+                <div class="breakdown-item">
+                    <span>Engagement</span>
+                    <span>$<span id="engEarnings">0.00</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="content">
+            <div class="privacy-notice">
+                🔒 All data is completely anonymized. No personal information is collected.
+            </div>
+            <div class="form-group">
+                <label for="apiKey">API Key:</label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+                <p style="font-size: 10px; color: #666; margin-top: 4px;">Get your API key at <a href="https://analytics-api.example.com" target="_blank" style="color: #667eea;">analytics-api.example.com</a></p>
+            </div>
+            <button id="saveBtn">Save Settings</button>
+            <div id="settingsStatus" class="status"></div>
+        </div>
+
+        <!-- Privacy Tab -->
+        <div id="privacy" class="content">
+            <h3 style="font-size: 13px; margin-bottom: 10px; font-weight: bold;">Privacy & Security</h3>
+            <div class="privacy-notice">
+                ✓ No personal data collected<br>
+                ✓ No tracking of sensitive pages<br>
+                ✓ Fully anonymous and encrypted<br>
+                ✓ GDPR compliant<br>
+                ✓ Delete data anytime
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="privacyMode" checked>
+                    <label for="privacyMode" style="margin: 0;">Anonymous mode (recommended)</label>
+                </div>
+            </div>
+            <button id="deleteDataBtn" style="background: #dc3545; margin-top: 10px;">Delete All Data</button>
+            <div id="privacyStatus" class="status"></div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
