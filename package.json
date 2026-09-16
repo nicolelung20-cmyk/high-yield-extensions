@@ -1,0 +1,13 @@
+{
+  "name": "high-yield-extensions",
+  "version": "1.0.0",
+  "description": "5 high-revenue browser extensions with complete boilerplate code",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
