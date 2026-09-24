@@ -40,7 +40,7 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid"' EXIT
           for attempt in 1 2 3 4 5; do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ | grep --quiet 'browser extension boilerplate collection'; then
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ | grep --quiet 'AI Workflow Audit'; then
               exit 0
             fi
             sleep 1
