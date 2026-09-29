@@ -149,7 +149,7 @@ run_hermes() {
   # `spawn hermes --version` works as well as `spawn hermes local --version`.
   case "${1:-}" in
     ''|-*) ;;
-    *) mode="$1"; shift ;;
+    *) mode="${1,,}"; shift ;;   # lowercase, matching target handling
   esac
 
   # Validate the mode before checking the install, so a typo is reported as a
@@ -185,13 +185,20 @@ no_extra_args() {
 
 main() {
   [ $# -gt 0 ] || { usage; return 2; }
+  # Match targets and commands case-insensitively: "Hermes" is the product's
+  # own capitalization, so it is what people type. The original argument is
+  # kept for the error message.
+  local raw="$1"
+  local key="${1,,}"
+  shift
+  set -- "$key" "$@"
   case "$1" in
     -h|--help)    usage ;;
     -V|--version) printf 'spawn %s\n' "$VERSION" ;;
     doctor)       shift; no_extra_args doctor "$@" && doctor ;;
     repair)       shift; no_extra_args repair "$@" && repair ;;
     hermes)       shift; run_hermes "$@" ;;
-    *) echo "spawn: unknown target '$1'" >&2; echo >&2; usage >&2; return 2 ;;
+    *) echo "spawn: unknown target '$raw'" >&2; echo >&2; usage >&2; return 2 ;;
   esac
 }
 
