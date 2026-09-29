@@ -28,7 +28,7 @@ spawn - launch an agent backend
 
 USAGE
   spawn <target> [mode]
-  spawn doctor
+  spawn doctor | repair
   spawn --help | --version
 
 TARGETS
@@ -36,6 +36,7 @@ TARGETS
 
 COMMANDS
   doctor                      Report which backends are usable, and why not.
+  repair                      Fix a known-broken hermes runtime (see README).
 
 ENVIRONMENT
   HERMES_DIR                  Hermes checkout (default: ~/hermes-agent)
@@ -80,9 +81,9 @@ doctor() {
       printf '  entrypoint %s\n' "$bin"
       printf '  detail     %s\n' \
         "$("$HERMES_DIR/.venv/bin/python" -c 'import pydantic, openai' 2>&1 | tail -1)"
-      printf '  likely     pinned pydantic vs this Python build (3.14.0rc2 changed\n'
-      printf '             typing._eval_type). Needs final 3.14.0, which requires a\n'
-      printf '             newer uv than %s.\n' "$(uv --version 2>/dev/null || echo unknown)"
+      printf '  likely     pinned pydantic vs this Python build (3.14.0rc2 renamed\n'
+      printf '             the typing._eval_type kwarg pydantic passes)\n'
+      printf '  fix        spawn repair\n'
     fi
   else
     printf '  status     NOT READY\n'
@@ -107,6 +108,38 @@ doctor() {
   fi
 
   [ "$ok" -eq 1 ] || return 1
+}
+
+# Install the 3.14.0rc2 typing shim into the hermes venv. Idempotent. The venv
+# is disposable, so the shim source lives in this repo and gets copied back in.
+repair() {
+  local shim_src venv_site
+  shim_src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/py314rc2-typing-shim.py"
+  [ -f "$shim_src" ] || { echo "spawn: missing $shim_src" >&2; return 1; }
+
+  local py="$HERMES_DIR/.venv/bin/python"
+  if [ ! -x "$py" ]; then
+    echo "spawn: no venv at $HERMES_DIR/.venv - nothing to repair." >&2
+    echo "spawn: run 'spawn doctor' for install steps." >&2
+    return 1
+  fi
+
+  if hermes_runtime_ok; then
+    echo "spawn: runtime already imports cleanly; no repair needed."
+    return 0
+  fi
+
+  venv_site="$("$py" -c 'import site; print(site.getsitepackages()[0])')" || return 1
+  install -m 0644 "$shim_src" "$venv_site/sitecustomize.py"
+  echo "spawn: installed shim -> $venv_site/sitecustomize.py"
+
+  if hermes_runtime_ok; then
+    echo "spawn: runtime imports cleanly now."
+  else
+    echo "spawn: runtime still failing - the cause is not the rc2 typing rename." >&2
+    echo "spawn: run 'spawn doctor' for the current error." >&2
+    return 1
+  fi
 }
 
 run_hermes() {
@@ -146,6 +179,7 @@ main() {
     -h|--help)    usage ;;
     -V|--version) printf 'spawn %s\n' "$VERSION" ;;
     doctor)       doctor ;;
+    repair)       repair ;;
     hermes)       shift; run_hermes "$@" ;;
     *) echo "spawn: unknown target '$1'" >&2; echo >&2; usage >&2; return 2 ;;
   esac

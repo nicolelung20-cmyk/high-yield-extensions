@@ -49,31 +49,45 @@ schema (`invalid type: boolean, expected a timestamp string`). Use
 reads the lock file, so it works on older uv. Hermes targets Python 3.14; uv
 downloads that itself.
 
-Status as of 2026-09-29 (Hermes `4e8b7a71`): this installs and the CLI
-dispatches, but the **agent runtime does not import**. `spawn doctor` reports
-this as DEGRADED rather than ready.
+Working as of 2026-09-29 (Hermes `4e8b7a71`, Python 3.14.0rc2), with one
+shim. Full sequence:
 
-Root cause, in order:
+```sh
+git clone --depth 1 https://github.com/NousResearch/hermes-agent.git ~/hermes-agent
+cd ~/hermes-agent && uv venv --python 3.14 && uv pip install -e .
+spawn repair          # only needed on Python 3.14.0rc2
+spawn doctor          # should report: status ready
+```
 
-1. Hermes requires Python 3.14 — 46 of its 48 dependencies are gated behind
-   `python_version >= '3.14'`, so a 3.13 venv installs almost nothing. 3.13 is
-   not a workaround.
-2. Its pinned `pydantic==2.13.4` (the same version `uv.lock` pins, so the lock
-   would not have helped) fails on Python **3.14.0rc2**, which changed
-   `typing._eval_type()` — `TypeError: unexpected keyword argument
-   'prefer_fwd_module'`.
-3. `uv 0.8.17` only offers `3.14.0rc2`; it has no final `3.14.0` build.
-4. Final 3.14.0 needs a newer uv, whose install was blocked in this
-   environment.
+### Why `uv pip install -e .` and not `uv sync`
 
-So this needs either a newer uv or a system Python 3.14.0 final. On a normal
-machine the official installer handles all of it.
+`uv sync --frozen` fails on uv 0.8.17: the repo's `uv.lock` uses a newer schema
+(`invalid type: boolean, expected a timestamp string`). `uv pip install -e .`
+resolves from `pyproject.toml` and never reads the lock, so it works on older
+uv. Note Hermes needs Python **3.14** — 46 of its 48 dependencies are gated
+behind `python_version >= '3.14'`, so a 3.13 venv installs almost nothing.
 
-### Running it
+### Why `spawn repair` exists
 
-Hermes is model-agnostic and needs an LLM provider configured before a chat
-session will do anything (`hermes model`). That means provider API costs — a
-deliberate decision, not a default.
+On Python 3.14.0**rc2**, importing pydantic dies with:
+
+```
+TypeError: _eval_type() got an unexpected keyword argument 'prefer_fwd_module'
+```
+
+rc2 named that `typing._eval_type` parameter `parent_fwdref`; pydantic passes
+`prefer_fwd_module`, the name in 3.14.0 final. This is **not** fixable by
+changing the pin — 2.12.5, 2.13.0-2.13.3, 2.13.4 (what `uv.lock` pins) and
+2.13.5 (latest) were all tested on rc2 and fail identically. uv 0.8.17 offers
+no 3.14.0 final build.
+
+`spawn repair` installs `py314rc2-typing-shim.py` as `sitecustomize.py` in the
+venv, dropping the unknown kwarg. It is idempotent and re-probes afterwards.
+The shim lives in this repo because `.venv` is disposable.
+
+**Caveat:** the shim falls back to default forward-ref resolution, which can
+differ for string annotations in TypedDicts imported across modules. Delete
+`sitecustomize.py` once the interpreter is 3.14.0 final.
 
 Set `HERMES_DIR` if the checkout is not at `~/hermes-agent`. `spawn` also
 checks `/home/user/hermes-agent` and `/opt/hermes-agent`.
