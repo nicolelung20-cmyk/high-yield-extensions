@@ -91,8 +91,14 @@ doctor() {
 }
 
 run_hermes() {
-  local mode="${1:-local}"
+  local mode=local
   local bin
+  # A first arg that looks like a flag is meant for hermes, not a mode, so
+  # `spawn hermes --version` works as well as `spawn hermes local --version`.
+  case "${1:-}" in
+    ''|-*) ;;
+    *) mode="$1"; shift ;;
+  esac
 
   # Validate the mode before checking the install, so a typo is reported as a
   # typo rather than as a missing backend.
@@ -107,10 +113,12 @@ run_hermes() {
     return 127
   fi
 
+  # Remaining args pass straight through to hermes, so `spawn hermes local
+  # --version` or `spawn hermes local chat` behave as you'd expect.
   if [ "$mode" = local ]; then
-    exec "$bin"
+    exec "$bin" "$@"
   fi
-  exec "$bin" --terminal "$mode"
+  exec "$bin" --terminal "$mode" "$@"
 }
 
 main() {
@@ -119,7 +127,7 @@ main() {
     -h|--help)    usage ;;
     -V|--version) printf 'spawn %s\n' "$VERSION" ;;
     doctor)       doctor ;;
-    hermes)       shift; run_hermes "${1:-local}" ;;
+    hermes)       shift; run_hermes "$@" ;;
     *) echo "spawn: unknown target '$1'" >&2; echo >&2; usage >&2; return 2 ;;
   esac
 }

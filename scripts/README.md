@@ -43,10 +43,20 @@ git clone --depth 1 https://github.com/NousResearch/hermes-agent.git ~/hermes-ag
 cd ~/hermes-agent && uv sync
 ```
 
-Known blocker as of 2026-09-29: the repo's `uv.lock` uses a schema that
-**uv 0.8.17 cannot parse** (`invalid type: boolean, expected a timestamp
-string`). It needs a newer uv. Hermes targets Python 3.14; uv fetches that
-itself.
+`uv sync --frozen` fails on uv 0.8.17: the repo's `uv.lock` uses a newer
+schema (`invalid type: boolean, expected a timestamp string`). Use
+`uv pip install -e .` instead — it resolves from `pyproject.toml` and never
+reads the lock file, so it works on older uv. Hermes targets Python 3.14; uv
+downloads that itself.
+
+Verified working this way on 2026-09-29 (Hermes `4e8b7a71`, Python
+3.14.0rc2).
+
+### Running it
+
+Hermes is model-agnostic and needs an LLM provider configured before a chat
+session will do anything (`hermes model`). That means provider API costs — a
+deliberate decision, not a default.
 
 Set `HERMES_DIR` if the checkout is not at `~/hermes-agent`. `spawn` also
 checks `/home/user/hermes-agent` and `/opt/hermes-agent`.
