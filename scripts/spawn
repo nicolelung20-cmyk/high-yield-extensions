@@ -173,13 +173,23 @@ run_hermes() {
   exec "$bin" --terminal "$mode" "$@"
 }
 
+# Reject stray arguments rather than silently ignoring them: a command that
+# appears to accept input it discards is how you end up trusting a run that
+# never happened.
+no_extra_args() {
+  local cmd="$1"; shift
+  [ $# -eq 0 ] && return 0
+  echo "spawn: '$cmd' takes no arguments (got: $*)" >&2
+  return 1
+}
+
 main() {
   [ $# -gt 0 ] || { usage; return 2; }
   case "$1" in
     -h|--help)    usage ;;
     -V|--version) printf 'spawn %s\n' "$VERSION" ;;
-    doctor)       doctor ;;
-    repair)       repair ;;
+    doctor)       shift; no_extra_args doctor "$@" && doctor ;;
+    repair)       shift; no_extra_args repair "$@" && repair ;;
     hermes)       shift; run_hermes "$@" ;;
     *) echo "spawn: unknown target '$1'" >&2; echo >&2; usage >&2; return 2 ;;
   esac
