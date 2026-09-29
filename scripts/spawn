@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# spawn - launch an agent backend for this venture.
+#
+# Lives in the repo on purpose. An earlier version of this tool existed only
+# at /tmp/spawn-install.sh and was lost when the container was reclaimed;
+# anything that needs to survive a reclaim has to be committed.
+
+set -euo pipefail
+
+VERSION="0.1.0"
+
+# Hermes checkout location. HERMES_DIR wins; otherwise take the first candidate
+# that exists, falling back to ~/hermes-agent so the "absent" message names a
+# sensible path to clone into. $HOME is not always the working user's home in a
+# container, so /home/user is checked too.
+default_hermes_dir() {
+  local c
+  for c in "$HOME/hermes-agent" /home/user/hermes-agent /opt/hermes-agent; do
+    [ -d "$c" ] && { printf '%s\n' "$c"; return; }
+  done
+  printf '%s\n' "$HOME/hermes-agent"
+}
+HERMES_DIR="${HERMES_DIR:-$(default_hermes_dir)}"
+
+usage() {
+  cat <<'__SPAWN_USAGE__'
+spawn - launch an agent backend
+
+USAGE
+  spawn <target> [mode]
+  spawn doctor
+  spawn --help | --version
+
+TARGETS
+  hermes [local|docker|ssh]   Hermes Agent (Nous Research). Default mode: local.
+
+COMMANDS
+  doctor                      Report which backends are usable, and why not.
+
+ENVIRONMENT
+  HERMES_DIR                  Hermes checkout (default: ~/hermes-agent)
+
+EXAMPLES
+  spawn hermes local
+  spawn doctor
+__SPAWN_USAGE__
+}
+
+# Resolve the hermes entrypoint, preferring a venv built inside the checkout.
+hermes_bin() {
+  if [ -x "$HERMES_DIR/.venv/bin/hermes" ]; then
+    printf '%s\n' "$HERMES_DIR/.venv/bin/hermes"
+  elif command -v hermes >/dev/null 2>&1; then
+    command -v hermes
+  else
+    return 1
+  fi
+}
+
+doctor() {
+  local ok=0
+  printf 'spawn %s\n\n' "$VERSION"
+
+  printf 'hermes:\n'
+  if bin=$(hermes_bin); then
+    printf '  status     ready\n  entrypoint %s\n' "$bin"
+    ok=1
+  else
+    printf '  status     NOT READY\n'
+    if [ -d "$HERMES_DIR" ]; then
+      printf '  checkout   %s (present)\n' "$HERMES_DIR"
+      printf '  missing    no built venv - dependencies were never installed\n'
+      printf '  fix        cd %s && uv sync\n' "$HERMES_DIR"
+      printf '  note       needs a uv new enough for this repo uv.lock schema;\n'
+      printf '             uv 0.8.17 rejects it. Check with: uv --version\n'
+    else
+      printf '  checkout   %s (absent)\n' "$HERMES_DIR"
+      printf '  fix        git clone --depth 1 \\\n'
+      printf '               https://github.com/NousResearch/hermes-agent.git %s\n' "$HERMES_DIR"
+    fi
+  fi
+
+  printf '\nuv:\n'
+  if command -v uv >/dev/null 2>&1; then
+    printf '  %s\n' "$(uv --version)"
+  else
+    printf '  not installed\n'
+  fi
+
+  [ "$ok" -eq 1 ] || return 1
+}
+
+run_hermes() {
+  local mode="${1:-local}"
+  local bin
+
+  # Validate the mode before checking the install, so a typo is reported as a
+  # typo rather than as a missing backend.
+  case "$mode" in
+    local|docker|ssh) ;;
+    *) echo "spawn: unknown hermes mode '$mode' (want: local, docker, ssh)" >&2; return 2 ;;
+  esac
+
+  if ! bin=$(hermes_bin); then
+    echo "spawn: hermes is not installed or not built." >&2
+    echo "spawn: run 'spawn doctor' for the specific reason and fix." >&2
+    return 127
+  fi
+
+  if [ "$mode" = local ]; then
+    exec "$bin"
+  fi
+  exec "$bin" --terminal "$mode"
+}
+
+main() {
+  [ $# -gt 0 ] || { usage; return 2; }
+  case "$1" in
+    -h|--help)    usage ;;
+    -V|--version) printf 'spawn %s\n' "$VERSION" ;;
+    doctor)       doctor ;;
+    hermes)       shift; run_hermes "${1:-local}" ;;
+    *) echo "spawn: unknown target '$1'" >&2; echo >&2; usage >&2; return 2 ;;
+  esac
+}
+
+main "$@"
