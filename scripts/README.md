@@ -89,5 +89,32 @@ The shim lives in this repo because `.venv` is disposable.
 differ for string annotations in TypedDicts imported across modules. Delete
 `sitecustomize.py` once the interpreter is 3.14.0 final.
 
+## Provider config
+
+`hermes-config.example.yaml` holds this venture's provider choice: **copilot**
+(GitHub Models), on a `GITHUB_TOKEN` free tier rather than a paid key.
+
+```sh
+hermes config set model.provider copilot   # non-interactive, works anywhere
+hermes model                               # picks the model from the live catalog
+```
+
+Config lands in `~/.hermes/config.yaml`, secrets in `~/.hermes/.env`.
+
+### This cannot be finished in a Claude Code web container
+
+Two independent blockers, both verified:
+
+1. `hermes model` refuses non-interactive use ("requires an interactive
+   terminal"). Forcing a pty with `script` gets past that check and then hangs
+   on the catalog fetch.
+2. Every copilot inference endpoint is refused by the egress policy with
+   403 on CONNECT: `models.github.ai`, `api.githubcopilot.com`,
+   `models.inference.ai.azure.com`.
+
+So no chat session can run here regardless of provider. Set the model on a
+machine with unrestricted egress. Do not hand-write `model.default` — an
+invented id fails at request time.
+
 Set `HERMES_DIR` if the checkout is not at `~/hermes-agent`. `spawn` also
 checks `/home/user/hermes-agent` and `/opt/hermes-agent`.

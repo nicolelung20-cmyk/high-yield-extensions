@@ -1,0 +1,13 @@
+# Starting Hermes config for this venture. Copy to ~/.hermes/config.yaml, or
+# apply the `hermes config set` commands below.
+#
+# Chosen provider: copilot (GitHub Models). Picked because it runs on a
+# GITHUB_TOKEN free tier rather than a paid API key.
+
+model:
+  # GitHub Models / Copilot. Requires GITHUB_TOKEN (or `gh auth token`).
+  provider: "copilot"
+
+  # LEAVE THIS TO `hermes model`. That command queries the live catalog and
+  # writes a valid id; a hand-written guess here will fail at request time.
+  # default: "<set by: hermes model>"
