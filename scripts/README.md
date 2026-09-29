@@ -49,8 +49,25 @@ schema (`invalid type: boolean, expected a timestamp string`). Use
 reads the lock file, so it works on older uv. Hermes targets Python 3.14; uv
 downloads that itself.
 
-Verified working this way on 2026-09-29 (Hermes `4e8b7a71`, Python
-3.14.0rc2).
+Status as of 2026-09-29 (Hermes `4e8b7a71`): this installs and the CLI
+dispatches, but the **agent runtime does not import**. `spawn doctor` reports
+this as DEGRADED rather than ready.
+
+Root cause, in order:
+
+1. Hermes requires Python 3.14 — 46 of its 48 dependencies are gated behind
+   `python_version >= '3.14'`, so a 3.13 venv installs almost nothing. 3.13 is
+   not a workaround.
+2. Its pinned `pydantic==2.13.4` (the same version `uv.lock` pins, so the lock
+   would not have helped) fails on Python **3.14.0rc2**, which changed
+   `typing._eval_type()` — `TypeError: unexpected keyword argument
+   'prefer_fwd_module'`.
+3. `uv 0.8.17` only offers `3.14.0rc2`; it has no final `3.14.0` build.
+4. Final 3.14.0 needs a newer uv, whose install was blocked in this
+   environment.
+
+So this needs either a newer uv or a system Python 3.14.0 final. On a normal
+machine the official installer handles all of it.
 
 ### Running it
 

@@ -57,14 +57,33 @@ hermes_bin() {
   fi
 }
 
+# A present entrypoint does not mean a working agent: the CLI can dispatch
+# --version fine while the agent runtime fails to import. Probe the core
+# dependency pair that actually breaks (pydantic against the running Python).
+hermes_runtime_ok() {
+  local py="$HERMES_DIR/.venv/bin/python"
+  [ -x "$py" ] || return 0   # no venv to judge; the caller reports that already
+  "$py" -c 'import pydantic, openai' 2>/dev/null
+}
+
 doctor() {
   local ok=0
   printf 'spawn %s\n\n' "$VERSION"
 
   printf 'hermes:\n'
   if bin=$(hermes_bin); then
-    printf '  status     ready\n  entrypoint %s\n' "$bin"
-    ok=1
+    if hermes_runtime_ok; then
+      printf '  status     ready\n  entrypoint %s\n' "$bin"
+      ok=1
+    else
+      printf '  status     DEGRADED - cli runs, agent runtime does not import\n'
+      printf '  entrypoint %s\n' "$bin"
+      printf '  detail     %s\n' \
+        "$("$HERMES_DIR/.venv/bin/python" -c 'import pydantic, openai' 2>&1 | tail -1)"
+      printf '  likely     pinned pydantic vs this Python build (3.14.0rc2 changed\n'
+      printf '             typing._eval_type). Needs final 3.14.0, which requires a\n'
+      printf '             newer uv than %s.\n' "$(uv --version 2>/dev/null || echo unknown)"
+    fi
   else
     printf '  status     NOT READY\n'
     if [ -d "$HERMES_DIR" ]; then
