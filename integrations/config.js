@@ -18,6 +18,12 @@ function providerConfig(env = process.env) {
       enabled: env.CLAUDE_ENABLED !== "false",
       apiKey: env.ANTHROPIC_API_KEY || null,
       model: env.CLAUDE_MODEL || "claude-opus-5",
+      // Optional: route through OpenRouter instead of the Anthropic API.
+      openrouter: {
+        apiKey: env.OPENROUTER_API_KEY || null,
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: env.OPENROUTER_MODEL || "anthropic/claude-opus-latest",
+      },
     },
     [ROLES.BOTS]: {
       name: "grok",

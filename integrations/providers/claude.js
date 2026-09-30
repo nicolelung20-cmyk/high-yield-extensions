@@ -9,6 +9,51 @@ const {
 
 const NAME = "claude";
 
+// OpenRouter exposes an OpenAI-compatible chat completions API.
+function createOpenRouterAdapter(or) {
+  return {
+    name: NAME,
+    role: ROLES.DASHBOARD,
+    isReady: () => true,
+    status: () => ({
+      name: NAME,
+      role: ROLES.DASHBOARD,
+      ready: true,
+      model: or.model,
+      via: "openrouter",
+    }),
+
+    // req: { prompt, system?, maxTokens? }
+    async send(req) {
+      try {
+        const res = await fetch(`${or.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${or.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: or.model,
+            max_tokens: req.maxTokens || 16000,
+            messages: [
+              ...(req.system ? [{ role: "system", content: req.system }] : []),
+              { role: "user", content: req.prompt },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        }
+        const raw = await res.json();
+        const text = (raw.choices && raw.choices[0]?.message?.content) || "";
+        return { provider: NAME, text, raw };
+      } catch (err) {
+        throw new ProviderRequestError(NAME, err.message, err);
+      }
+    },
+  };
+}
+
 function createClaudeAdapter(cfg) {
   if (!cfg.enabled) {
     return disabledAdapter({
@@ -17,11 +62,14 @@ function createClaudeAdapter(cfg) {
       reason: "CLAUDE_ENABLED is false",
     });
   }
+  if (cfg.openrouter && cfg.openrouter.apiKey) {
+    return createOpenRouterAdapter(cfg.openrouter);
+  }
   if (!cfg.apiKey) {
     return disabledAdapter({
       name: NAME,
       role: ROLES.DASHBOARD,
-      reason: "ANTHROPIC_API_KEY is not set",
+      reason: "ANTHROPIC_API_KEY or OPENROUTER_API_KEY is not set",
     });
   }
 

@@ -30,6 +30,8 @@ pretends to work.
 | Variable | Role | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | dashboard | Required for Claude |
+| `OPENROUTER_API_KEY` | dashboard | If set, Claude is routed via OpenRouter (`https://openrouter.ai/api/v1`) |
+| `OPENROUTER_MODEL` | dashboard | Defaults to `anthropic/claude-opus-latest` |
 | `CLAUDE_MODEL` | dashboard | Defaults to `claude-opus-5` |
 | `CLAUDE_ENABLED` | dashboard | Set `false` to disable |
 | `XAI_API_KEY` | bots | Not provisioned |
