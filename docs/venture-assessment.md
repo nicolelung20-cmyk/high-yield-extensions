@@ -71,13 +71,42 @@ consent; shipping as-is would be a violation independent of store policy.
    deleting the exfiltration path entirely.
 2. **Retire it** and put the effort into EAI.
 
-## EAI / psychiczebra-platform is the shortest path to a first dollar
+## EAI / psychiczebra-platform: payments are BUILT, not missing
 
-It deploys successfully on Vercel, has `subscriptions` and `consultation_leads`
-schema, and an RPC (`upsert_subscription`) already locked down. The missing
-piece is narrow and well defined: **no payment integration wired to
-`subscriptions`.** That is a finite build with a clear finish line, on a
-product whose business model is lawful.
+**Correction to an earlier version of this document,** which said EAI had "no
+payment integration." That was wrong. The payment path exists and is
+implemented competently:
+
+- `app/api/billing/checkout/route.ts` — creates real Stripe Checkout sessions
+  in `subscription` mode via the REST API, authenticates the caller against
+  Supabase, and attaches `user_id` plus attribution as both session and
+  subscription metadata. It calls `api.stripe.com` with `fetch`, which is why
+  there is deliberately no `stripe` dependency in `package.json`.
+- `app/api/billing/webhook/route.ts` — verifies the `stripe-signature` header
+  properly: HMAC-SHA256 over `timestamp.body`, a 300-second replay window, and
+  `timingSafeEqual` for the comparison. On `checkout.session.completed` it sets
+  `profiles.plan = 'pro'`, stores `stripe_subscription_id` and resets the usage
+  counter.
+
+So EAI is **not a build away from taking money. It is configuration away.**
+`checkout` returns HTTP 503 "Billing is not configured yet" until these four
+environment variables are set in the Vercel project:
+
+| Variable | From |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | Stripe dashboard, API keys |
+| `STRIPE_PRICE_ID` | The recurring price created for the Pro plan |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook endpoint pointed at `/api/billing/webhook` |
+| `NEXT_PUBLIC_APP_URL` | The deployed origin, for success and cancel redirects |
+
+`.env.example` already documents all four.
+
+### The real gap is signups, not plumbing
+
+The webhook writes to `profiles`, and `profiles` has **0 rows**. Nobody has
+created an account. With the four variables set, the platform can charge — but
+it has no one to charge. The binding constraint is user acquisition, not
+engineering.
 
 ## money
 
