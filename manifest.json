@@ -1,22 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Traffic Analytics Pro",
-  "version": "1.0.0",
-  "description": "Earn money by sharing anonymous browsing analytics. Help advertisers understand user behavior.",
+  "name": "Local Browsing Stats",
+  "version": "2.0.0",
+  "description": "See a private count of the sites you visit. Your data stays on your device and is never sent anywhere.",
   "permissions": [
-    "activeTab",
-    "scripting",
     "storage",
-    "webRequest",
-    "tabs",
     "webNavigation"
-  ],
-  "host_permissions": [
-    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Traffic Analytics Pro"
+    "default_title": "Local Browsing Stats"
   },
   "background": {
     "service_worker": "background.js"

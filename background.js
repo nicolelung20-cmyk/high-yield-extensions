@@ -1,221 +1,104 @@
-// Background Service Worker - Anonymous Traffic Monetizer
+// Background service worker - local browsing stats.
+//
+// Single purpose: show you a count of your own page visits per domain.
+//
+// Everything stays on this device. There is deliberately no network code in
+// this file and no remote endpoint anywhere in the extension: the previous
+// version sold browsing activity to advertising and market-research partners,
+// which Chrome Web Store program policy prohibits outright (see
+// docs/venture-assessment.md). Nothing is recorded until the user opts in.
 
-const CONFIG = {
-  userId: generateUserId(),
-  sessionStart: Date.now(),
-  apiKey: null,
-  earnings: 0,
-  dataPoints: [],
-  batchSize: 50,
-  sendInterval: 300000, // 5 minutes
-  privacyMode: true // Always anonymized
-};
+const CONSENT_KEY = "consentGrantedAt";
 
-function generateUserId() {
-  return 'user_' + Math.random().toString(36).substr(2, 9);
+// Recorded per domain: a visit count and the last time it was seen. No URLs,
+// no paths, no query strings, no referrers - a domain tally is all the
+// user-facing feature needs, so it is all that is kept.
+const STATS_KEY = "domainStats";
+
+// --- consent -----------------------------------------------------------
+
+async function hasConsent() {
+  const { [CONSENT_KEY]: grantedAt } = await chrome.storage.local.get(CONSENT_KEY);
+  return Boolean(grantedAt);
 }
 
-// Initialize
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get(['apiKey', 'privacyMode', 'earnings'], (result) => {
-    CONFIG.apiKey = result.apiKey || null;
-    CONFIG.privacyMode = result.privacyMode !== false;
-    CONFIG.earnings = result.earnings || 0;
-    
-    if (!CONFIG.apiKey) {
-      chrome.runtime.openOptionsPage();
-    } else {
-      startTracking();
-    }
-  });
-});
+async function grantConsent() {
+  await chrome.storage.local.set({ [CONSENT_KEY]: Date.now() });
+}
 
-// Track tab changes and page visits
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    trackPageVisit(tab.url);
-  });
-});
+// Withdrawing consent also discards what was collected under it.
+async function revokeConsent() {
+  await chrome.storage.local.remove([CONSENT_KEY, STATS_KEY]);
+}
 
+// --- recording ---------------------------------------------------------
+
+// Only http(s) pages are counted. Browser-internal pages (chrome://,
+// about:, extension pages) and file:// URLs are skipped.
+function domainOf(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.hostname || null;
+  } catch {
+    return null; // not a URL we can read
+  }
+}
+
+async function recordVisit(url) {
+  if (!(await hasConsent())) return;
+
+  const domain = domainOf(url);
+  if (!domain) return;
+
+  const { [STATS_KEY]: stats = {} } = await chrome.storage.local.get(STATS_KEY);
+  const entry = stats[domain] || { visits: 0, lastSeen: 0 };
+  stats[domain] = { visits: entry.visits + 1, lastSeen: Date.now() };
+  await chrome.storage.local.set({ [STATS_KEY]: stats });
+}
+
+// A committed main-frame navigation is one page visit. onActivated is not
+// used: switching back to an existing tab is not a new visit, and counting it
+// inflated the numbers in the previous version.
 chrome.webNavigation.onCommitted.addListener((details) => {
-  if (details.frameId === 0) {
-    trackPageVisit(details.url);
-  }
+  if (details.frameId !== 0) return; // ignore iframes
+  recordVisit(details.url);
 });
 
-// Track time on page
-let pageStartTime = Date.now();
-let currentPageDomain = null;
+// --- popup messages ----------------------------------------------------
 
-chrome.tabs.onActivated.addListener(() => {
-  pageStartTime = Date.now();
-});
+// Each branch returns true to keep the message channel open for the async
+// reply, which is required by chrome.runtime.onMessage.
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request.action === "getState") {
+    (async () => {
+      const { [STATS_KEY]: stats = {} } = await chrome.storage.local.get(STATS_KEY);
+      const domains = Object.entries(stats)
+        .map(([domain, v]) => ({ domain, ...v }))
+        .sort((a, b) => b.visits - a.visits);
 
-// Listen for messages
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'saveSettings') {
-    chrome.storage.sync.set({
-      apiKey: request.apiKey,
-      privacyMode: request.privacyMode
-    }, () => {
-      CONFIG.apiKey = request.apiKey;
-      CONFIG.privacyMode = request.privacyMode;
-      if (request.apiKey) {
-        startTracking();
-      }
-      sendResponse({ success: true });
-    });
-    return true;
-  }
-
-  if (request.action === 'getStats') {
-    chrome.storage.local.get(['totalDataPoints', 'earnings', 'lastPayment'], (result) => {
       sendResponse({
-        dataPoints: result.totalDataPoints || 0,
-        earnings: result.earnings || CONFIG.earnings,
-        lastPayment: result.lastPayment || null
+        consent: await hasConsent(),
+        totalVisits: domains.reduce((sum, d) => sum + d.visits, 0),
+        domainCount: domains.length,
+        topDomains: domains.slice(0, 10),
       });
-    });
+    })();
     return true;
   }
 
-  if (request.action === 'getSettings') {
-    chrome.storage.sync.get(['apiKey', 'privacyMode'], (result) => {
-      sendResponse({
-        apiKey: result.apiKey || '',
-        privacyMode: result.privacyMode !== false
-      });
-    });
+  if (request.action === "grantConsent") {
+    grantConsent().then(() => sendResponse({ ok: true }));
     return true;
   }
-});
 
-// Main tracking function
-function trackPageVisit(url) {
-  try {
-    const domain = new URL(url).hostname;
-    currentPageDomain = domain;
-
-    const dataPoint = {
-      domain: domain,
-      timestamp: Date.now(),
-      timeSpent: calculateTimeOnPage(),
-      userAgent: navigator.userAgent,
-      referrer: document.referrer,
-      scrollDepth: 0,
-      clicks: 0
-    };
-
-    CONFIG.dataPoints.push(dataPoint);
-
-    // Send batch when threshold reached
-    if (CONFIG.dataPoints.length >= CONFIG.batchSize) {
-      sendBatchData();
-    }
-  } catch (error) {
-    console.error('Error tracking page:', error);
-  }
-}
-
-function calculateTimeOnPage() {
-  const timeSpent = Date.now() - pageStartTime;
-  return Math.round(timeSpent / 1000); // Convert to seconds
-}
-
-// Send batch data to server
-async function sendBatchData() {
-  if (CONFIG.dataPoints.length === 0 || !CONFIG.apiKey) {
-    return;
+  if (request.action === "revokeConsent") {
+    revokeConsent().then(() => sendResponse({ ok: true }));
+    return true;
   }
 
-  const batch = CONFIG.dataPoints.splice(0, CONFIG.batchSize);
-
-  try {
-    const response = await fetch('https://analytics-api.example.com/v1/track', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CONFIG.apiKey}`
-      },
-      body: JSON.stringify({
-        userId: CONFIG.userId,
-        privacyMode: CONFIG.privacyMode,
-        dataPoints: batch,
-        timestamp: Date.now()
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      
-      // Update earnings
-      if (result.earnings) {
-        CONFIG.earnings += result.earnings;
-        chrome.storage.local.get(['totalDataPoints'], (res) => {
-          chrome.storage.local.set({
-            totalDataPoints: (res.totalDataPoints || 0) + batch.length,
-            earnings: CONFIG.earnings
-          });
-        });
-      }
-
-      // Notify popup of update
-      chrome.runtime.sendMessage({
-        action: 'updateStats',
-        earnings: CONFIG.earnings
-      }).catch(() => {}); // Ignore if popup not open
-    }
-  } catch (error) {
-    console.error('Error sending analytics data:', error);
-    // Re-add batch for retry
-    CONFIG.dataPoints.unshift(...batch);
+  if (request.action === "clearStats") {
+    chrome.storage.local.remove(STATS_KEY).then(() => sendResponse({ ok: true }));
+    return true;
   }
-}
-
-// Periodic batch send
-function startTracking() {
-  if (!CONFIG.apiKey) return;
-
-  // Send batches every 5 minutes
-  setInterval(() => {
-    sendBatchData();
-  }, CONFIG.sendInterval);
-
-  // Also send on browser close
-  window.addEventListener('beforeunload', () => {
-    sendBatchData();
-  });
-}
-
-// Analyze scroll depth
-chrome.tabs.onActivated.addListener(() => {
-  chrome.tabs.executeScript({
-    code: `
-      let maxScroll = 0;
-      window.addEventListener('scroll', () => {
-        const scroll = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-        maxScroll = Math.max(maxScroll, scroll);
-        chrome.runtime.sendMessage({
-          action: 'updateScrollDepth',
-          depth: Math.round(maxScroll)
-        });
-      });
-    `
-  }).catch(() => {});
-});
-
-// Track clicks for engagement
-chrome.tabs.onActivated.addListener(() => {
-  chrome.tabs.executeScript({
-    code: `
-      let clickCount = 0;
-      document.addEventListener('click', () => {
-        clickCount++;
-        chrome.runtime.sendMessage({
-          action: 'updateClicks',
-          clicks: clickCount
-        });
-      });
-    `
-  }).catch(() => {});
 });

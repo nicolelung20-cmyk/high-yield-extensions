@@ -1,10 +1,11 @@
 {
   "name": "high-yield-extensions",
   "version": "1.0.0",
-  "description": "5 high-revenue browser extensions with complete boilerplate code",
+  "description": "Local Browsing Stats - a private, on-device page-visit counter",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node test/background.test.mjs"
   },
   "engines": {
     "node": ">=18"

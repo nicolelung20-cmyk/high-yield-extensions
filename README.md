@@ -1,78 +1,58 @@
-# Traffic Analytics Pro - Chrome Extension
+# Local Browsing Stats
 
-## Features
-- 💰 Earn money from your browsing data
-- 🔒 100% anonymous and privacy-safe
-- 📊 Real-time earnings dashboard
-- 🛡️ No personal data collection
-- 📈 Detailed analytics breakdown
-- ⚡ Lightweight and fast
-- 🌍 GDPR & privacy compliant
+A Chrome extension that keeps a private, on-device count of the pages you open
+per site.
 
-## How It Works
+## What it does
 
-1. Extension tracks anonymous browsing patterns
-2. Data is aggregated and anonymized
-3. Sent to advertising/market research partners
-4. You earn money from the data
-5. Payments via PayPal or Stripe
+- Counts main-frame page visits, grouped by domain.
+- Shows your top sites and totals in the popup.
+- Stores everything in `chrome.storage.local` on your own device.
 
-## Earnings Breakdown
+## What it does not do
 
-- **Page Views:** $0.005-0.01 per page
-- **Time on Site:** $0.001 per minute
-- **Engagement:** $0.02-0.05 per engagement
+- **No network calls.** There is no `fetch`, no endpoint, no server. Grep the
+  source: `grep -rE "fetch\(|https?://" background.js popup.js` returns
+  nothing.
+- **No URLs, paths, query strings or page contents** are stored - only the
+  domain and a count.
+- **No selling or sharing of data.** Nothing leaves the device, so there is
+  nothing to sell.
 
-**Realistic Earning:** $5-20/month per user
+## Consent
 
-**At Scale:** 100K users = $500K-$2M/month
+Nothing is recorded until you press "Turn on counting". "Turn off & delete"
+withdraws consent and deletes everything collected under it.
 
-## Installation
+## Permissions, and why each is needed
 
-1. Clone this repository
-2. Open `chrome://extensions/`
-3. Enable "Developer mode"
-4. Click "Load unpacked"
-5. Select this folder
+| Permission | Why |
+| --- | --- |
+| `storage` | Keep your counts on this device |
+| `webNavigation` | Know when a page visit happens |
 
-## Setup
+No `<all_urls>`, no `webRequest`, no `tabs`, no `scripting` - none are needed
+for a domain tally, so none are requested.
 
-1. Create account at analytics-api.example.com
-2. Get your API key
-3. Enter API key in extension settings
-4. Start earning immediately
+## Install
 
-## Privacy Guarantees
+1. Open `chrome://extensions/`
+2. Enable Developer mode
+3. Load unpacked, and select this folder
 
-✓ No identifiable information collected
-✓ No personal browsing details stored
-✓ Fully encrypted transmission
-✓ GDPR, CCPA compliant
-✓ Opt-out anytime
-✓ No cookies on personal sites
+## Test
 
-## Revenue Model
+```sh
+npm test
+```
 
-- **CPM (Cost Per Mille):** Advertisers pay $2-8 per 1000 impressions
-- **CPC (Cost Per Click):** Earn $0.01-0.50 per engagement
-- **Data Sales:** Sell aggregated insights to market researchers
+Six behaviour tests cover the consent gate, counting and ranking,
+domain-only storage, scheme and subframe filtering, and deletion on revoke.
 
-## Monetization Potential
+## History
 
-| Users | Monthly Revenue |
-|-------|----------------|
-| 10K   | $50K-200K     |
-| 100K  | $500K-2M      |
-| 1M    | $5M-20M       |
-
-## Technical Details
-
-- Chrome Extension Manifest v3
-- Real-time data batching
-- Secure API communication
-- Local storage encryption
-- Automatic data deletion (30 days)
-
-## Support
-
-For privacy concerns or issues, visit support page.
+Version 1 of this extension ("Traffic Analytics Pro") collected browsing
+activity and sold it to advertising and market-research partners. That model is
+prohibited outright by Chrome Web Store program policy and could never have
+been published; it was also broken, using APIs unavailable in a Manifest V3
+service worker. See `docs/venture-assessment.md` for the full finding.
